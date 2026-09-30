@@ -1,53 +1,85 @@
 # Jolly Nail Printing
 
-A premium, responsive website for an Australian self-service nail art printing business.
+Premium self-service nail art website for Australia, running on **Next.js 16, React 19, TypeScript and Node.js 24**. Venue enquiries use **Hostinger MySQL** through a bounded `mysql2` connection pool.
 
-Live website: https://jolly-nail-printing-studio.walkersaint402.chatgpt.site
+The existing design, homepage copy, images, fonts, video, gallery filters, dialogs, FAQ and upcoming-location state are preserved. This branch replaces the Cloudflare/Vinext runtime and D1 integration for Hostinger Business Web Hosting.
 
-## Included
+## Run locally
 
-- Cobalt, porcelain and cherry-red visual identity with original nail imagery.
-- Responsive navigation, design gallery filters, machine details and video dialogs.
-- Four-step customer experience and accessible FAQ accordions.
-- Location search with an honest coming-soon state.
-- Venue enquiry form with server validation and durable Cloudflare D1 storage.
-- Local fonts, images, machine footage and reduced-motion support.
+Use Node 24 (`.nvmrc` is included):
 
-## Technology
-
-React, TypeScript, Vinext with Vite, Tailwind CSS, Radix UI, Cloudflare Workers and Cloudflare D1. The production website currently uses Sites hosting. This repository preserves the website source and assets; it is not a static GitHub Pages export.
-
-## Local development
-
-Requires Node.js 22.13 or newer and pnpm 11.25.0, as declared in package.json.
-
-```sh
-pnpm install --frozen-lockfile
-pnpm dev
+```bash
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-The portable development server starts on port 5173. To build and preview the production Worker:
+Open `http://localhost:3000`. The homepage works without database credentials. To save enquiries, set the real `DB_*` variables in `.env.local` and apply the schema:
 
-```sh
-pnpm build
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_large_randall_flagg.sql
-pnpm start
+```bash
+npm run db:migrate
 ```
 
-Apply the migration once per fresh local database. Local Wrangler data is ignored by Git. Production needs the Cloudflare D1 binding named DB and the included migration; production binding identifiers and secrets are managed by the hosting platform.
+Production commands:
+
+```bash
+npm run build
+npm start
+```
+
+`next start` uses Hostinger's supplied `PORT`, or port 3000 locally. The output directory is `.next`; this is a server application with a POST endpoint, so deploy with Hostinger's **Next.js** preset.
+
+## Hostinger deployment
+
+Full setup: [docs/hostinger.md](docs/hostinger.md).
+
+| Setting | Value |
+| --- | --- |
+| Application framework | Next.js, with a Node.js server |
+| Node version | 24.x |
+| Project root | Repository root |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Start command | `npm start` |
+| Build output | `.next` |
+| Repository branch | `hostinger-node-migration` |
+
+Use either the private GitHub repository or upload a ZIP containing the source files at its root. Configure the database and environment variables in Hostinger, then deploy. Domain connection uses the DNS records Hostinger issues for that deployment.
+
+## Database and existing enquiries
+
+- Schema: `db/migrations/001_venue_enquiries.sql`, compatible with MySQL/InnoDB and `utf8mb4`.
+- Server connection and prepared inserts: `db/index.ts`.
+- The original eleven enquiry fields are retained, including contact consent and epoch-millisecond timestamps.
+- Repeating a submission UUID succeeds without overwriting the original lead.
+- Existing D1 records can be transferred using the validated JSON importer: [docs/data-migration.md](docs/data-migration.md).
+- Database credentials stay server-side. Keep exports and environment files out of Git.
+
+## Verification
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+The opt-in real-database check requires an **empty disposable MySQL database**:
+
+```bash
+RUN_MYSQL_INTEGRATION=1 npm run test:db
+```
+
+Pass database variables through the environment for this integration check. It rolls back the test records. Use the verification report in [docs/verification.md](docs/verification.md) for results and deployment checks still requiring Hostinger access.
 
 ## Editing
 
-- Homepage: app/page.tsx
-- Visual styles: app/globals.css
-- Metadata: app/layout.tsx
-- Future confirmed machines: lib/locations.ts
-- Enquiry endpoint: app/api/venue-enquiries/route.ts
-- Enquiry schema and migration: db/schema.ts and drizzle/
-- Images, local fonts and videos: public/
+- Homepage: `app/page.tsx`
+- Visual styles: `app/globals.css`
+- SEO metadata: `app/layout.tsx` and `NEXT_PUBLIC_SITE_URL`
+- Confirmed future machines: `lib/locations.ts`
+- Enquiry endpoint: `app/api/venue-enquiries/route.ts`
+- Validation and response handling: `lib/venue-enquiries.ts`
+- Images, fonts and footage: `public/`
 
-Launch locations are intentionally unconfirmed. Gallery images are design inspiration, not customer results. Enquiries are saved to the database; email notifications are not configured.
-
-Additional runtime and deployment notes: [docs/development.md](docs/development.md).
-
-Keep credentials, environment files, local database contents and build output out of Git. Existing third-party license notices are included with their respective files.
+Launch locations remain coming soon. Gallery imagery remains design inspiration. Enquiries are stored in MySQL; automatic email notifications have not been added. Existing third-party license notices are retained with their respective UI assets.
